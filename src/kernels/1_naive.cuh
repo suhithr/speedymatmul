@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NAIVE_CUH
+#define NAIVE_CUH
 
 #include <cstdio>
 #include <cuda_runtime.h>
@@ -20,3 +21,5 @@ __global__ void sgemm_naive(int M, int N, int K, float alpha, const float *A,
     C[x * N + y] = alpha * tmp + beta * C[x * N + y];
   }
 }
+
+#endif
