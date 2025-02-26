@@ -2,15 +2,9 @@
 #include "run_kernels.cuh"
 #include <cmath>
 #include <cstdio>
+#include <iomanip>
+#include <iostream>
 #include <sys/time.h>
-
-float get_sec() {
-  struct timeval time;
-  gettimeofday(&time, NULL);
-  return (1e6 * time.tv_sec + time.tv_usec);
-}
-
-float cpu_elapsed_time(float &beg, float &end) { return 1.0e-6 * (end - beg); }
 
 void cudaCheck(cudaError_t err, const char *file, int line) {
   if (err != cudaSuccess) {
@@ -50,6 +44,23 @@ void CudaDeviceInfo() {
          props.multiProcessorCount, props.warpSize);
 };
 
+void print_matrix(float *mat, int M, int N, std::ofstream &fs) {
+  int i;
+  fs << std::setprecision(2) << std::fixed;
+  fs << "[";
+  for (i = 0; i < M * N; i++) {
+    if ((i + 1) % N == 0)
+      fs << std::setw(5) << mat[i];
+    else
+      fs << std::setw(5) << mat[i] << ", ";
+    if ((i + 1) % N == 0) {
+      if (i + 1 < M * N)
+        fs << ";\n";
+    }
+  }
+  fs << "]\n";
+}
+
 void randomize_matrix(float *mat, int N) {
   // NOTICE: Use gettimeofday instead of srand((unsigned)time(NULL)); the time
   // precision is too low and the same random number is generated.
@@ -66,6 +77,20 @@ void randomize_matrix(float *mat, int N) {
   }
 }
 
+bool verify_matrix(float *D_ref, float *D, int SIZE) {
+  double diff = 0.0;
+  for (int i = 0; i < SIZE; i++) {
+    diff = std::fabs(D[i] - D_ref[i]);
+    if (diff > 0.01) {
+      printf("Value %6.2f is %6.2f :: diff %6.2f at %d \n", D_ref[i], D[i],
+             diff, i);
+      fflush(stdout);
+      return false;
+    }
+  }
+  return true;
+}
+
 void run_sgemm_naive(int M, int N, int K, float alpha, float *A, float *B,
                      float beta, float *C) {
   dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
@@ -73,11 +98,27 @@ void run_sgemm_naive(int M, int N, int K, float alpha, float *A, float *B,
   sgemm_naive<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
+void run_cublas_fp32(int M, int N, int K, float alpha, float *A, float *B,
+                     float beta, float *C, cublasHandle_t handle) {
+  // cuBLAS uses column-major order. So we change the order of our row-major A &
+  // B, since (B^T*A^T)^T = (A*B)
+  cublasStatus_t gemm_stat;
+  gemm_stat =
+      cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, B,
+                   CUDA_R_32F, N, A, CUDA_R_32F, K, &beta, C, CUDA_R_32F, N,
+                   CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+}
+
 void run_kernel(int selected_kernel, int M, int N, int K, float alpha, float *A,
-                float *B, float beta, float *C) {
+                float *B, float beta, float *C, cublasHandle_t handle) {
   switch (selected_kernel) {
   case 0:
+    run_cublas_fp32(M, N, K, alpha, A, B, beta, C, handle);
+    break;
+  case 1:
     run_sgemm_naive(M, N, K, alpha, A, B, beta, C);
     break;
+  default:
+    throw std::invalid_argument("Unknown kernel number");
   }
 }
