@@ -1,12 +1,13 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.20)
 project(SPEEDYMATMUL LANGUAGES CXX CUDA)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# find_package(CUDA REQUIRED)
+find_package(CUDA REQUIRED)
 
 # verify cuda is available
 include(CheckLanguage)
 check_language(CUDA)
+enable_language(CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CUDA_COMPUTE_CAPABILITY 61)
@@ -22,6 +23,9 @@ include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/src)
 # Configure the source file path to be compiled
 aux_source_directory(${PROJECT_SOURCE_DIR}/src SRC)
+
+message(STATUS "CUDA_CUBLAS_LIBRARIES: ${CUDA_CUBLAS_LIBRARIES}")
+message(STATUS "CUDA_INCLUDE_DIRS: ${CUDA_INCLUDE_DIRS}")
 
 # generate executable
 add_executable(sgemm sgemm.cu ${SRC})
