@@ -6,15 +6,18 @@
 #include <iostream>
 #include <sys/time.h>
 
-void cudaCheck(cudaError_t err, const char *file, int line) {
-  if (err != cudaSuccess) {
+void cudaCheck(cudaError_t err, const char *file, int line)
+{
+  if (err != cudaSuccess)
+  {
     printf("[CUDA ERROR] from file %s:%d:\n%s\n", file, line,
            cudaGetErrorString(err));
     exit(EXIT_FAILURE);
   }
 }
 
-void CudaDeviceInfo() {
+void CudaDeviceInfo()
+{
   int deviceId;
 
   cudaGetDevice(&deviceId);
@@ -44,16 +47,19 @@ void CudaDeviceInfo() {
          props.multiProcessorCount, props.warpSize);
 };
 
-void print_matrix(float *mat, int M, int N, std::ofstream &fs) {
+void print_matrix(float *mat, int M, int N, std::ofstream &fs)
+{
   int i;
   fs << std::setprecision(2) << std::fixed;
   fs << "[";
-  for (i = 0; i < M * N; i++) {
+  for (i = 0; i < M * N; i++)
+  {
     if ((i + 1) % N == 0)
       fs << std::setw(5) << mat[i];
     else
       fs << std::setw(5) << mat[i] << ", ";
-    if ((i + 1) % N == 0) {
+    if ((i + 1) % N == 0)
+    {
       if (i + 1 < M * N)
         fs << ";\n";
     }
@@ -61,7 +67,8 @@ void print_matrix(float *mat, int M, int N, std::ofstream &fs) {
   fs << "]\n";
 }
 
-void randomize_matrix(float *mat, int N) {
+void randomize_matrix(float *mat, int N)
+{
   // NOTICE: Use gettimeofday instead of srand((unsigned)time(NULL)); the time
   // precision is too low and the same random number is generated.
   // we call this function 3 times in quick succession to initialize the
@@ -69,7 +76,8 @@ void randomize_matrix(float *mat, int N) {
   struct timeval time{};
   gettimeofday(&time, nullptr);
   srand(time.tv_usec);
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < N; i++)
+  {
     // creating small floats from -4.04 to +4.04
     float tmp = (float)(rand() % 5) + 0.01 * (rand() % 5);
     tmp = (rand() % 2 == 0) ? tmp : tmp * (-1.0);
@@ -77,11 +85,14 @@ void randomize_matrix(float *mat, int N) {
   }
 }
 
-bool verify_matrix(float *D_ref, float *D, int SIZE) {
+bool verify_matrix(float *D_ref, float *D, int SIZE)
+{
   double diff = 0.0;
-  for (int i = 0; i < SIZE; i++) {
+  for (int i = 0; i < SIZE; i++)
+  {
     diff = std::fabs(D[i] - D_ref[i]);
-    if (diff > 0.01) {
+    if (diff > 0.01)
+    {
       printf("Value %6.2f is %6.2f :: diff %6.2f at %d \n", D_ref[i], D[i],
              diff, i);
       fflush(stdout);
@@ -92,14 +103,16 @@ bool verify_matrix(float *D_ref, float *D, int SIZE) {
 }
 
 void run_sgemm_naive(int M, int N, int K, float alpha, float *A, float *B,
-                     float beta, float *C) {
+                     float beta, float *C)
+{
   dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
   dim3 blockDim(32, 32);
   sgemm_naive<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
 void run_sgemm_global_memory_clsc(int M, int N, int K, float alpha, float *A,
-                                  float *B, float beta, float *C) {
+                                  float *B, float beta, float *C)
+{
   dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
   dim3 blockDim(32, 32);
   sgemm_global_memory_coalescing<<<gridDim, blockDim>>>(M, N, K, alpha, A, B,
@@ -108,15 +121,20 @@ void run_sgemm_global_memory_clsc(int M, int N, int K, float alpha, float *A,
 
 void run_sgemm_shared_memory_blocking(int M, int N, int K, float alpha,
                                       float *A, float *B, float beta,
-                                      float *C) {
-  dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
-  dim3 blockDim(32, 32);
-  sgemm_shared_memory_blocking<32>
+                                      float *C)
+{
+  const uint BLOCKSIZE = 32;
+
+  dim3 gridDim(CEIL_DIV(M, BLOCKSIZE), CEIL_DIV(N, BLOCKSIZE));
+  dim3 blockDim(BLOCKSIZE, BLOCKSIZE);
+
+  sgemm_shared_memory_blocking<BLOCKSIZE>
       <<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
 void run_cublas_fp32(int M, int N, int K, float alpha, float *A, float *B,
-                     float beta, float *C, cublasHandle_t handle) {
+                     float beta, float *C, cublasHandle_t handle)
+{
   // cuBLAS uses column-major order. So we change the order of our row-major A &
   // B, since (B^T*A^T)^T = (A*B)
   cublasStatus_t gemm_stat;
@@ -127,8 +145,10 @@ void run_cublas_fp32(int M, int N, int K, float alpha, float *A, float *B,
 }
 
 void run_kernel(int selected_kernel, int M, int N, int K, float alpha, float *A,
-                float *B, float beta, float *C, cublasHandle_t handle) {
-  switch (selected_kernel) {
+                float *B, float beta, float *C, cublasHandle_t handle)
+{
+  switch (selected_kernel)
+  {
   case 0:
     run_cublas_fp32(M, N, K, alpha, A, B, beta, C, handle);
     break;
