@@ -11,14 +11,14 @@ const std::string errLogFile = "matrixMultiplicationMistake.txt";
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    std::cerr << "Select a kernel (range 0 - 1)" << std::endl;
+    std::cerr << "Select a kernel (range 0 - 3)" << std::endl;
     exit(EXIT_FAILURE);
   }
 
   // read kernel number
   int kernel_num = std::stoi(argv[1]);
-  if (kernel_num < 0 || kernel_num > 2) {
-    std::cerr << "Please enter a valid kernel number (0-1)" << std::endl;
+  if (kernel_num < 0 || kernel_num > 3) {
+    std::cerr << "Please enter a valid kernel number (0-2)" << std::endl;
     exit(EXIT_FAILURE);
   }
 
@@ -37,8 +37,8 @@ int main(int argc, char **argv) {
   cudaEventCreate(&beg);
   cudaEventCreate(&end);
 
-  std::vector<int> SIZE = {2, 4, 128,
-                           256}; // , 512, 1024, 2048, 4096, 8192, 16384};
+  std::vector<int> SIZE = {2,   4,    128, 256,
+                           512, 1024, 2048}; //, 4096}; // , 8192, 16384};
 
   long m, n, k, max_size;
   max_size = SIZE[SIZE.size() - 1];
@@ -132,8 +132,8 @@ int main(int argc, char **argv) {
       elapsed_time /= 1000.0; // convert ms to seconds
 
       long flops = 2 * k * m * n;
-      printf("Average elapsed time: (%8.6f) s, performance: (%8.1f) GFLOPS. "
-             "Size: (%ld).",
+      printf("Average elapsed time: (%8.6f) s, performance: (%4.1f) GFLOPS. "
+             "Size: (%ld).\n",
              elapsed_time / repeat_times,
              (flops * repeat_times) / (1e9 * elapsed_time), m);
       fflush(stdout);
