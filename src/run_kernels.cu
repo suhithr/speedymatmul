@@ -111,8 +111,8 @@ void run_sgemm_shared_memory_blocking(int M, int N, int K, float alpha,
                                       float *C) {
   dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
   dim3 blockDim(32, 32);
-  sgemm_shared_memory_blocking<<<gridDim, blockDim>>>(M, N, K, alpha, A, B,
-                                                      beta, C);
+  sgemm_shared_memory_blocking<32>
+      <<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
 void run_cublas_fp32(int M, int N, int K, float alpha, float *A, float *B,
