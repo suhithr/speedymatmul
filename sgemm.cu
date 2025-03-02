@@ -13,15 +13,15 @@ int main(int argc, char **argv)
 {
   if (argc != 2)
   {
-    std::cerr << "Select a kernel (range 0 - 3)" << std::endl;
+    std::cerr << "Select a kernel (range 0 - 4)" << std::endl;
     exit(EXIT_FAILURE);
   }
 
   // read kernel number
   int kernel_num = std::stoi(argv[1]);
-  if (kernel_num < 0 || kernel_num > 4)
+  if (kernel_num < 0 || kernel_num > 5)
   {
-    std::cerr << "Please enter a valid kernel number (0-3)" << std::endl;
+    std::cerr << "Please enter a valid kernel number (0-4)" << std::endl;
     exit(EXIT_FAILURE);
   }
 
@@ -42,8 +42,7 @@ int main(int argc, char **argv)
   cudaEventCreate(&end);
 
   std::vector<int> SIZE = {2, 4, 128, 256,
-                           512, 1024, 2048}; //4096}; // , 8192, 16384};
-  // std::vector<int> SIZE = {2048};
+                           512, 1024, 2048}; // 4096}; // , 8192, 16384};
 
   long m, n, k, max_size;
   max_size = SIZE[SIZE.size() - 1];
@@ -86,7 +85,12 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-  int repeat_times = 50;
+  // Debugging kernels where we don't want to print much
+  if (kernel_num == 0)
+  {
+    SIZE = {32};
+  }
+  int repeat_times = (kernel_num != 0) ? 50 : 1;
   for (int size : SIZE)
   {
     m = n = k = size;
@@ -98,7 +102,7 @@ int main(int argc, char **argv)
     // eg: starting from an idle clock speed, JIT compilation/kernel caching
     // which happens on the first run, or even memory page allocation
 
-    if (kernel_num != 0)
+    if (kernel_num > 1)
     {
       run_kernel(0, m, n, k, alpha, dA, dB, beta, dC_ref, handle); // cuBLAS
       run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);

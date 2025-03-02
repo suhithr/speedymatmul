@@ -114,11 +114,19 @@ void run_sgemm_global_memory_clsc(int M, int N, int K, float alpha, float *A,
                                   float *B, float beta, float *C)
 {
   dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
-  dim3 blockDim(32, 32);
+  dim3 blockDim(32 * 32);
   sgemm_global_memory_coalescing<<<gridDim, blockDim>>>(M, N, K, alpha, A, B,
                                                         beta, C);
 }
 
+void run_debug_sgemm_global_memory_clsc(int M, int N, int K, float alpha, float *A,
+                                        float *B, float beta, float *C)
+{
+  dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
+  dim3 blockDim(32, 32);
+  debug_sgemm_global_memory_coalescing<32><<<gridDim, blockDim>>>(M, N, K, alpha, A, B,
+                                                                  beta, C);
+}
 void run_sgemm_shared_memory_blocking(int M, int N, int K, float alpha,
                                       float *A, float *B, float beta,
                                       float *C)
@@ -150,15 +158,18 @@ void run_kernel(int selected_kernel, int M, int N, int K, float alpha, float *A,
   switch (selected_kernel)
   {
   case 0:
-    run_cublas_fp32(M, N, K, alpha, A, B, beta, C, handle);
+    run_debug_sgemm_global_memory_clsc(M, N, K, alpha, A, B, beta, C);
     break;
   case 1:
-    run_sgemm_naive(M, N, K, alpha, A, B, beta, C);
+    run_cublas_fp32(M, N, K, alpha, A, B, beta, C, handle);
     break;
   case 2:
-    run_sgemm_global_memory_clsc(M, N, K, alpha, A, B, beta, C);
+    run_sgemm_naive(M, N, K, alpha, A, B, beta, C);
     break;
   case 3:
+    run_sgemm_global_memory_clsc(M, N, K, alpha, A, B, beta, C);
+    break;
+  case 4:
     run_sgemm_shared_memory_blocking(M, N, K, alpha, A, B, beta, C);
     break;
   default:
