@@ -159,7 +159,7 @@ void run_kernel(int selected_kernel, int M, int N, int K, float alpha, float *A,
     run_sgemm_global_memory_clsc(M, N, K, alpha, A, B, beta, C);
     break;
   case 3:
-    run_sgemm_global_memory_clsc(M, N, K, alpha, A, B, beta, C);
+    run_sgemm_shared_memory_blocking(M, N, K, alpha, A, B, beta, C);
     break;
   default:
     throw std::invalid_argument("Unknown kernel number");
