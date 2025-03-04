@@ -24,7 +24,6 @@ __global__ void debug_sgemm_global_memory_coalescing(int M, int N, int K, float 
     const uint y = blockIdx.y * BLOCKSIZE + threadIdx.x;
 
     // the worklog's method
-    // const uint BLOCKSIZE = 32;
     // const int x = blockIdx.x * BLOCKSIZE + (threadIdx.x / BLOCKSIZE);
     // const int y = blockIdx.y * BLOCKSIZE + (threadIdx.x % BLOCKSIZE);
 
