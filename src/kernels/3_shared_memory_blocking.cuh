@@ -26,6 +26,8 @@ __global__ void sgemm_shared_memory_blocking(int M, int N, int K, float alpha,
   for (int offset = 0; offset < K; offset += 32)
   {
     // load shared memory
+    // This should be a coalesced load because the rightmost value shmem_col & cCol both
+    // reduce to threadIdx.x
     sA[shmem_row * BLOCK_SIDE + shmem_col] = A[cRow * K + (offset + shmem_col)]; // the same row (x) of the result element (x, y)
                                                                                  // with the column offset by (offset + tid.y)
     sB[shmem_row * BLOCK_SIDE + shmem_col] = B[(offset + shmem_row) * N + cCol]; // the same column of the result element (x, y)
