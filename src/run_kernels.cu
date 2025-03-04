@@ -114,7 +114,7 @@ void run_sgemm_global_memory_clsc(int M, int N, int K, float alpha, float *A,
                                   float *B, float beta, float *C)
 {
   dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
-  dim3 blockDim(32 * 32);
+  dim3 blockDim(32, 32);
   sgemm_global_memory_coalescing<<<gridDim, blockDim>>>(M, N, K, alpha, A, B,
                                                         beta, C);
 }
@@ -123,7 +123,7 @@ void run_debug_sgemm_global_memory_clsc(int M, int N, int K, float alpha, float 
                                         float *B, float beta, float *C)
 {
   dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
-  dim3 blockDim(32, 32);
+  dim3 blockDim(32 *  32);
   debug_sgemm_global_memory_coalescing<32><<<gridDim, blockDim>>>(M, N, K, alpha, A, B,
                                                                   beta, C);
 }

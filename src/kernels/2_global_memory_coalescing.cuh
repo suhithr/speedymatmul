@@ -12,8 +12,10 @@ __global__ void sgemm_global_memory_coalescing(int M, int N, int K, float alpha,
                                                const float *A, const float *B,
                                                float beta, float *C)
 {
-  const uint x = blockIdx.x * 32 + (threadIdx.x / 32);//threadIdx.y;// (threadIdx.x / 32);
-  const uint y = blockIdx.y * 32 + (threadIdx.x % 32);// threadIdx.x;// (threadIdx.x % 32);
+  // const uint x = blockIdx.x * 32 + (threadIdx.x / 32);//threadIdx.y;// (threadIdx.x / 32);
+  // const uint y = blockIdx.y * 32 + (threadIdx.x % 32);// threadIdx.x;// (threadIdx.x % 32);
+  const uint x = blockIdx.y * 32+ threadIdx.y;
+  const uint y = blockIdx.x * 32 + threadIdx.x;
 
   if (x < M && y < N)
   {

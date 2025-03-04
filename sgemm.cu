@@ -4,14 +4,20 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #define cudaCheck(err) (cudaCheck(err, __FILE__, __LINE__))
 
 const std::string errLogFile = "matrixMultiplicationMistake.txt";
 
+
+/*
+CLI:
+./sgemm {kernel_num} {--profile}
+*/
 int main(int argc, char **argv)
 {
-  if (argc != 2)
+  if (argc < 2)
   {
     std::cerr << "Select a kernel (range 0 - 4)" << std::endl;
     exit(EXIT_FAILURE);
@@ -23,6 +29,11 @@ int main(int argc, char **argv)
   {
     std::cerr << "Please enter a valid kernel number (0-4)" << std::endl;
     exit(EXIT_FAILURE);
+  }
+  bool profile_mode = false;
+  if (argc >= 3 && std::strcmp(argv[2], "--profile") == 0)
+  {
+    profile_mode = true;
   }
 
   // get environment variable for device
@@ -41,8 +52,8 @@ int main(int argc, char **argv)
   cudaEventCreate(&beg);
   cudaEventCreate(&end);
 
-  std::vector<int> SIZE = {2, 4, 128, 256,
-                           512, 1024, 2048}; // 4096}; // , 8192, 16384};
+  std::vector<int> SIZE = {32, 64, 128, 256,
+                           512, 1024}; // 2048}; // 4096}; // , 8192, 16384};
 
   long m, n, k, max_size;
   max_size = SIZE[SIZE.size() - 1];
@@ -85,12 +96,20 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
+  int repeat_times = 50;
   // Debugging kernels where we don't want to print much
   if (kernel_num == 0)
   {
     SIZE = {32};
+    repeat_times = 50;
   }
-  int repeat_times = (kernel_num != 0) ? 50 : 1;
+  // In profile mode we want to warm up the GPU. So we run 50 times
+  // pass in the --launch-skip 49 flag to NCU to skip the first 49 launches
+  if (profile_mode) {
+
+    SIZE = {2048};
+    repeat_times = 50;
+  }
   for (int size : SIZE)
   {
     m = n = k = size;
@@ -102,9 +121,9 @@ int main(int argc, char **argv)
     // eg: starting from an idle clock speed, JIT compilation/kernel caching
     // which happens on the first run, or even memory page allocation
 
-    if (kernel_num > 1)
+    if (kernel_num > 1 && profile_mode == false)
     {
-      run_kernel(0, m, n, k, alpha, dA, dB, beta, dC_ref, handle); // cuBLAS
+      run_kernel(1, m, n, k, alpha, dA, dB, beta, dC_ref, handle); // cuBLAS
       run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);
 
       cudaCheck(cudaDeviceSynchronize());
