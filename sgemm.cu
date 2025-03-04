@@ -4,27 +4,42 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #define cudaCheck(err) (cudaCheck(err, __FILE__, __LINE__))
 
 const std::string errLogFile = "matrixMultiplicationMistake.txt";
 
-int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::cerr << "Select a kernel (range 0 - 3)" << std::endl;
+
+/*
+CLI:
+./sgemm {kernel_num} {--profile}
+*/
+int main(int argc, char **argv)
+{
+  if (argc < 2)
+  {
+    std::cerr << "Select a kernel (range 0 - 4)" << std::endl;
     exit(EXIT_FAILURE);
   }
 
   // read kernel number
   int kernel_num = std::stoi(argv[1]);
-  if (kernel_num < 0 || kernel_num > 3) {
-    std::cerr << "Please enter a valid kernel number (0-2)" << std::endl;
+  if (kernel_num < 0 || kernel_num > 5)
+  {
+    std::cerr << "Please enter a valid kernel number (0-4)" << std::endl;
     exit(EXIT_FAILURE);
+  }
+  bool profile_mode = false;
+  if (argc >= 3 && std::strcmp(argv[2], "--profile") == 0)
+  {
+    profile_mode = true;
   }
 
   // get environment variable for device
   int deviceIdx = 0;
-  if (getenv("DEVICE") != NULL) {
+  if (getenv("DEVICE") != NULL)
+  {
     deviceIdx = std::atoi(getenv("DEVICE"));
   }
   cudaCheck(cudaSetDevice(deviceIdx));
@@ -37,8 +52,8 @@ int main(int argc, char **argv) {
   cudaEventCreate(&beg);
   cudaEventCreate(&end);
 
-  std::vector<int> SIZE = {2,   4,    128, 256,
-                           512, 1024, 2048}; //, 4096}; // , 8192, 16384};
+  std::vector<int> SIZE = {32, 64, 128, 256,
+                           512, 1024}; // 2048}; // 4096}; // , 8192, 16384};
 
   long m, n, k, max_size;
   max_size = SIZE[SIZE.size() - 1];
@@ -75,13 +90,28 @@ int main(int argc, char **argv) {
   cublasStatus_t stat;
   cublasHandle_t handle;
   stat = cublasCreate(&handle);
-  if (stat != CUBLAS_STATUS_SUCCESS) {
+  if (stat != CUBLAS_STATUS_SUCCESS)
+  {
     std::cerr << "CUBLAS initialization failed";
     exit(EXIT_FAILURE);
   }
 
   int repeat_times = 50;
-  for (int size : SIZE) {
+  // Debugging kernels where we don't want to print much
+  if (kernel_num == 0)
+  {
+    SIZE = {32};
+    repeat_times = 50;
+  }
+  // In profile mode we want to warm up the GPU. So we run 50 times
+  // pass in the --launch-skip 49 flag to NCU to skip the first 49 launches
+  if (profile_mode) {
+
+    SIZE = {2048};
+    repeat_times = 50;
+  }
+  for (int size : SIZE)
+  {
     m = n = k = size;
     std::cout << "dimensions(m=n=k) " << m << ", alpha: " << alpha
               << ", beta: " << beta << std::endl;
@@ -91,8 +121,9 @@ int main(int argc, char **argv) {
     // eg: starting from an idle clock speed, JIT compilation/kernel caching
     // which happens on the first run, or even memory page allocation
 
-    if (kernel_num != 0) {
-      run_kernel(0, m, n, k, alpha, dA, dB, beta, dC_ref, handle); // cuBLAS
+    if (kernel_num > 1 && profile_mode == false)
+    {
+      run_kernel(1, m, n, k, alpha, dA, dB, beta, dC_ref, handle); // cuBLAS
       run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);
 
       cudaCheck(cudaDeviceSynchronize());
@@ -102,9 +133,11 @@ int main(int argc, char **argv) {
           cudaMemcpy(C, dC, sizeof(float) * m * n, cudaMemcpyDeviceToHost));
       cudaCheck(cudaMemcpy(C_ref, dC_ref, sizeof(float) * m * n,
                            cudaMemcpyDeviceToHost));
-      if (!verify_matrix(C_ref, C, m * n)) {
+      if (!verify_matrix(C_ref, C, m * n))
+      {
         std::cerr << "Failed to pass correctness verification against cuBLAS";
-        if (m <= 128) {
+        if (m <= 128)
+        {
           std::cout << " Logging faulty output into " << errLogFile << "\n";
           std::ofstream fs;
           fs.open(errLogFile);
@@ -119,29 +152,29 @@ int main(int argc, char **argv) {
         }
         exit(EXIT_FAILURE);
       }
-
-      cudaCheck(cudaEventRecord(beg));
-      for (int i = 0; i < repeat_times; i++) {
-        run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);
-      }
-      cudaCheck(cudaEventRecord(end));
-      cudaCheck(cudaEventSynchronize(beg));
-      cudaCheck(cudaEventSynchronize(end));
-
-      cudaCheck(cudaEventElapsedTime(&elapsed_time, beg, end));
-      elapsed_time /= 1000.0; // convert ms to seconds
-
-      long flops = 2 * k * m * n;
-      printf("Average elapsed time: (%8.6f) s, performance: (%4.1f) GFLOPS. "
-             "Size: (%ld).\n",
-             elapsed_time / repeat_times,
-             (flops * repeat_times) / (1e9 * elapsed_time), m);
-      fflush(stdout);
-
-      // reset dC to the dC_ref value
-      cudaCheck(cudaMemcpy(dC, dC_ref, sizeof(float) * m * n,
-                           cudaMemcpyDeviceToDevice));
     }
+    cudaCheck(cudaEventRecord(beg));
+    for (int i = 0; i < repeat_times; i++)
+    {
+      run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);
+    }
+    cudaCheck(cudaEventRecord(end));
+    cudaCheck(cudaEventSynchronize(beg));
+    cudaCheck(cudaEventSynchronize(end));
+
+    cudaCheck(cudaEventElapsedTime(&elapsed_time, beg, end));
+    elapsed_time /= 1000.0; // convert ms to seconds
+
+    long flops = 2 * k * m * n;
+    printf("Average elapsed time: (%8.6f) s, performance: (%4.1f) GFLOPS. "
+           "Size: (%ld).\n",
+           elapsed_time / repeat_times,
+           (flops * repeat_times) / (1e9 * elapsed_time), m);
+    fflush(stdout);
+
+    // reset dC to the dC_ref value
+    cudaCheck(cudaMemcpy(dC, dC_ref, sizeof(float) * m * n,
+                         cudaMemcpyDeviceToDevice));
   }
 
   free(A);
