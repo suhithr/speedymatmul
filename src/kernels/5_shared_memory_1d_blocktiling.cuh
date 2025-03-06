@@ -16,6 +16,8 @@ __global__ void sgemm_shared_memory_1d_blocktiling(int M, int N, int K, float al
   const uint b_inner_row = threadIdx.x / BN; // 0..8
   const uint a_inner_col = threadIdx.x % BK;
   const uint a_inner_row = threadIdx.x / BK;
+  const uint c_row = threadIdx.x / BM; // 0..8 since each thread handles 8 elements
+  const uint c_col = threadIdx.x % BM;
   // const uint c_row = blockIdx.y;
   // const uint c_col = blockIdx.x;
 
@@ -37,31 +39,25 @@ __global__ void sgemm_shared_memory_1d_blocktiling(int M, int N, int K, float al
     sB[b_inner_row * BN + b_inner_col] = B[(b_inner_row)*N + b_inner_col];         // the same column of the result element (x, y)
                                                                                        // with the row offset by (offset + tid.x) * N
     __syncthreads();
+
+    // slide A & B's pointers to the next tile
     A += BK;
     B += BK * N;
-    for (int resIdx = 0; resIdx < 8; resIdx++)
+    for (int t = 0; t < 8; t++)
     {
-      for (int dotIdx = 0; dotIdx < BK; dotIdx++)
+      for (int idx = 0; idx < BK; idx++)
       {
-        // we need to add 0, 8, 16, ... to the a_in_block_r
-        tmp[resIdx] += 
-          sA[((b_inner_row * 8) + resIdx) * BK + dotIdx] * sB[dotIdx * BN + b_inner_col];
+        // we need to add 0, 8, 16, ... to the a_in_block_row
+        tmp[t] += 
+          sA[((c_row * 8) + t) * BK + idx] * sB[idx * BN + c_col];
       }
     }
-    // for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
-    //   // we make the dotproduct loop the outside loop, which facilitates
-    //   // reuse of the Bs entry, which we can cache in a tmp var.
-    //   float tmpB = sB[dotIdx * BN + b_inner_col];
-    //   for (uint resIdx = 0; resIdx < 8; ++resIdx) {
-    //     tmp[resIdx] +=
-    //         sA[(b_inner_row * 8 + resIdx) * BK + dotIdx] * tmpB;
-    //   }
     __syncthreads();
   }
 
-  for (int resIdx = 0; resIdx < 8; resIdx++)
+  for (int t = 0; t < 8; t++)
   {
-    C[(b_inner_row * 8 + resIdx) * N + b_inner_col] = alpha * tmp[resIdx] + beta * C[(b_inner_row * 8 + resIdx) * N + b_inner_col];
+    C[(c_row * 8 + t) * N + c_col] = alpha * tmp[t] + beta * C[(c_row * 8 + t) * N + c_col];
   }
 }
 #endif
