@@ -61,8 +61,3 @@ __global__ void sgemm_shared_memory_1d_blocktiling(int M, int N, int K, float al
   }
 }
 #endif
-// printf("threadId %d, tidx, tidy: (%d, %d), C (%d, %d)\n",
-//   threadId,
-//   threadIdx.x, threadIdx.y,
-//   cRow, cCol
-// );
