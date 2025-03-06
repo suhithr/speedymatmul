@@ -52,8 +52,8 @@ int main(int argc, char **argv)
   cudaEventCreate(&beg);
   cudaEventCreate(&end);
 
-  std::vector<int> SIZE = {32, 64, 128, 256,
-                           512, 1024}; // 2048}; // 4096}; // , 8192, 16384};
+  std::vector<int> SIZE = {128, 256,
+                           512, 1024, 2048}; // 4096}; // , 8192, 16384};
 
   long m, n, k, max_size;
   max_size = SIZE[SIZE.size() - 1];
@@ -110,6 +110,7 @@ int main(int argc, char **argv)
     SIZE = {2048};
     repeat_times = 50;
   }
+  // SIZE = {128};
   for (int size : SIZE)
   {
     m = n = k = size;

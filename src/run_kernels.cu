@@ -123,7 +123,7 @@ void run_debug_sgemm_global_memory_clsc(int M, int N, int K, float alpha, float 
                                         float *B, float beta, float *C)
 {
   dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
-  dim3 blockDim(32 *  32);
+  dim3 blockDim(32 * 32);
   debug_sgemm_global_memory_coalescing<32><<<gridDim, blockDim>>>(M, N, K, alpha, A, B,
                                                                   beta, C);
 }
@@ -140,6 +140,17 @@ void run_sgemm_shared_memory_blocking(int M, int N, int K, float alpha,
       <<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
+void run_sgemm_shared_memory_1d_blocktiling(int M, int N, int K, float alpha,
+                                            float *A, float *B, float beta,
+                                            float *C)
+{
+  const uint BLOCKSIDE = 64, BK = 8;
+
+  dim3 gridDim(CEIL_DIV(M, BLOCKSIDE), CEIL_DIV(N, BLOCKSIDE));
+  dim3 blockDim(BLOCKSIDE *  BK);
+
+  sgemm_shared_memory_1d_blocktiling<BLOCKSIDE, BLOCKSIDE, BK><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+}
 void run_cublas_fp32(int M, int N, int K, float alpha, float *A, float *B,
                      float beta, float *C, cublasHandle_t handle)
 {
@@ -171,6 +182,9 @@ void run_kernel(int selected_kernel, int M, int N, int K, float alpha, float *A,
     break;
   case 4:
     run_sgemm_shared_memory_blocking(M, N, K, alpha, A, B, beta, C);
+    break;
+  case 5:
+    run_sgemm_shared_memory_1d_blocktiling(M, N, K, alpha, A, B, beta, C);
     break;
   default:
     throw std::invalid_argument("Unknown kernel number");
