@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
+SET(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 project(SPEEDYMATMUL LANGUAGES CXX CUDA)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -15,7 +16,7 @@ set(CUDA_COMPUTE_CAPABILITY 61)
 
 # in debug mode, add debug symbols to device code
 # this disables most optimizations and kills performance
-add_compile_options("$<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G;-src-in-ptx>")
+# add_compile_options("$<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G;-src-in-ptx>")
 # add_compile_options("--ptxas-options=-v")
 
 # Configure header file search paths
@@ -31,7 +32,3 @@ message(STATUS "CUDA_INCLUDE_DIRS: ${CUDA_INCLUDE_DIRS}")
 add_executable(sgemm sgemm.cu ${SRC})
 set_target_properties(sgemm PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
 target_link_libraries(sgemm ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
-
-# add_executable(cuBLAS_sgemm cuBLAS_sgemm.cu )
-# set_target_properties(cuBLAS_sgemm PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
-# target_link_libraries(cuBLAS_sgemm ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
