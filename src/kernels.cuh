@@ -6,5 +6,6 @@
 #include "kernels/0_print_coalesc_memory_address.cuh"
 #include "kernels/4_shared_memory_blocking.cuh"
 #include "kernels/5_shared_memory_1d_blocktiling.cuh"
+#include "kernels/6_shared_memory_2d_blocktiling.cuh"
 
 #endif

@@ -9,7 +9,7 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
 {
     __shared__ float sA[BM * BK];
     __shared__ float sB[BK * BN];
-    float tmp[64] = {0.0};
+    float tmp[TM] = {0.0};
 
     const uint threadCol = threadIdx.x;
     const uint load_A_col = threadIdx.x % 8;
