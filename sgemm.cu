@@ -126,23 +126,12 @@ int main(int argc, char **argv)
 
     if (kernel_num > 1 && profile_mode == false)
     {
-      float *dsA = nullptr, *sA = nullptr, *dsB = nullptr, *sB = nullptr;
-      sA = (float *)malloc(sizeof(float) * max_size * max_size);
-      sB = (float *)malloc(sizeof(float) * max_size * max_size);
-      cudaCheck(cudaMalloc((void **)&dsA, sizeof(float) * max_size * max_size));
-      cudaCheck(cudaMalloc((void **)&dsB, sizeof(float) * max_size * max_size));
 
       run_kernel(1, m, n, k, alpha, dA, dB, beta, dC_ref, handle); // cuBLAS
-      // run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);
-      run_sgemm_shared_memory_2d_blocktiling(m, n, k, alpha, dA, dB, beta, dC, dsA, dsB);
+      run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);
 
       cudaCheck(cudaDeviceSynchronize());
       cudaCheck(cudaGetLastError());
-
-      cudaCheck(cudaMemcpy(sA, dsA, sizeof(float) * max_size * max_size,
-                           cudaMemcpyDeviceToHost));
-      cudaCheck(cudaMemcpy(sB, dsB, sizeof(float) * max_size * max_size,
-                           cudaMemcpyDeviceToHost));
 
       cudaCheck(
           cudaMemcpy(C, dC, sizeof(float) * m * n, cudaMemcpyDeviceToHost));
@@ -164,10 +153,6 @@ int main(int argc, char **argv)
           print_matrix(C, m, n, fs);
           fs << "Should:\n";
           print_matrix(C_ref, m, n, fs);
-          fs << "sharedA:\n";
-          print_matrix(sA, 64, 8, fs);
-          fs << "sharedB:\n";
-          print_matrix(sB, 8, 64, fs);
         }
         exit(EXIT_FAILURE);
       }

@@ -5,8 +5,7 @@
 #include <cuda_runtime.h>
 
 template <const uint BM, const uint BN, const uint BK, const uint TM, const uint TN>
-// __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float alpha, const float *A, const float *B, float beta, float *C)
-__global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float alpha, const float *A, const float *B, float beta, float *C, float *sharedA, float *sharedB)
+__global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float alpha, const float *A, const float *B, float beta, float *C)
 {
     __shared__ float sA[BM * BK];
     __shared__ float sB[BK * BN];
@@ -57,25 +56,6 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
         {
             const uint c_col = thread_col * 8 + c;
             C[c_row * N + c_col] = alpha * tmp[r * 8 + c] + beta * C[c_row * N + c_col];
-        }
-    }
-    if (threadIdx.x == 0)
-    {
-        for (int a = 0; a < BM; a++)
-        {
-            for (int b = 0; b < BK; b++)
-            {
-                // printf("a, b: %d, %d \n ", a, b);
-                sharedA[a * BK + b] = sA[a * BK + b];
-            }
-        }
-        for (int a = 0; a < BK; a++)
-        {
-            for (int b = 0; b < BN; b++)
-            {
-                // printf("a, b: %d, %d \n ", a, b);
-                sharedB[a * BN + b] = sB[a * BN + b];
-            }
         }
     }
 }
