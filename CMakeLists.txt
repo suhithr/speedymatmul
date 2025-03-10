@@ -14,9 +14,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CUDA_COMPUTE_CAPABILITY 61)
 
 
-# in debug mode, add debug symbols to device code
+# in debug mode, add debug symbols to device code and -G adds line number info
 # this disables most optimizations and kills performance
-# add_compile_options("$<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G;-src-in-ptx>")
+add_compile_options("$<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G;-src-in-ptx>")
 # add_compile_options("--ptxas-options=-v")
 
 # Configure header file search paths

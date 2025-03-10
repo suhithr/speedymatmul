@@ -10,7 +10,6 @@
 
 const std::string errLogFile = "matrixMultiplicationMistake.txt";
 
-
 /*
 CLI:
 ./sgemm {kernel_num} {--profile}
@@ -60,6 +59,8 @@ int main(int argc, char **argv)
   std::cout << "Max size: " << max_size << std::endl;
 
   float alpha = 0.6, beta = 4.0; // GEMM parameters C=alpha*AB + beta*C
+  alpha = 1.0;
+  beta = 0.0;
 
   float *A = nullptr, *B = nullptr, *C = nullptr, *C_ref = nullptr;
   float *dA = nullptr, *dB = nullptr, *dC = nullptr, *dC_ref = nullptr;
@@ -105,12 +106,13 @@ int main(int argc, char **argv)
   }
   // In profile mode we want to warm up the GPU. So we run 50 times
   // pass in the --launch-skip 49 flag to NCU to skip the first 49 launches
-  if (profile_mode) {
+  if (profile_mode)
+  {
 
     SIZE = {2048};
     repeat_times = 50;
   }
-  // SIZE = {128};
+  // SIZE = {64};
   for (int size : SIZE)
   {
     m = n = k = size;
@@ -124,11 +126,23 @@ int main(int argc, char **argv)
 
     if (kernel_num > 1 && profile_mode == false)
     {
+      float *dsA = nullptr, *sA = nullptr, *dsB = nullptr, *sB = nullptr;
+      sA = (float *)malloc(sizeof(float) * max_size * max_size);
+      sB = (float *)malloc(sizeof(float) * max_size * max_size);
+      cudaCheck(cudaMalloc((void **)&dsA, sizeof(float) * max_size * max_size));
+      cudaCheck(cudaMalloc((void **)&dsB, sizeof(float) * max_size * max_size));
+
       run_kernel(1, m, n, k, alpha, dA, dB, beta, dC_ref, handle); // cuBLAS
-      run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);
+      // run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);
+      run_sgemm_shared_memory_2d_blocktiling(m, n, k, alpha, dA, dB, beta, dC, dsA, dsB);
 
       cudaCheck(cudaDeviceSynchronize());
       cudaCheck(cudaGetLastError());
+
+      cudaCheck(cudaMemcpy(sA, dsA, sizeof(float) * max_size * max_size,
+                           cudaMemcpyDeviceToHost));
+      cudaCheck(cudaMemcpy(sB, dsB, sizeof(float) * max_size * max_size,
+                           cudaMemcpyDeviceToHost));
 
       cudaCheck(
           cudaMemcpy(C, dC, sizeof(float) * m * n, cudaMemcpyDeviceToHost));
@@ -150,6 +164,10 @@ int main(int argc, char **argv)
           print_matrix(C, m, n, fs);
           fs << "Should:\n";
           print_matrix(C_ref, m, n, fs);
+          fs << "sharedA:\n";
+          print_matrix(sA, 64, 8, fs);
+          fs << "sharedB:\n";
+          print_matrix(sB, 8, 64, fs);
         }
         exit(EXIT_FAILURE);
       }

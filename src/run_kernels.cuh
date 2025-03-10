@@ -14,5 +14,8 @@ void print_matrix(float *mat, int M, int N, std::ofstream &fs);
 bool verify_matrix(float *D, float *D_ref, int SIZE);
 void run_kernel(int selected_kernel, int M, int N, int K, float alpha, float *A,
                 float *B, float beta, float *C, cublasHandle_t handle);
+void run_sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float alpha,
+    float *A, float *B, float beta,
+    float *C, float *sA, float *sB);
 
 #endif
