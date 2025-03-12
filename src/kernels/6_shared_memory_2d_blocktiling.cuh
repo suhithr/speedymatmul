@@ -17,21 +17,22 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
     __shared__ float sA[BM * BK];
     __shared__ float sB[BK * BN];
     float tmp[TM * TN] = {0.0}; // a thread's register cache
-    // float sharedA_cache[TM] = {0.0};
-    // float sharedB_cache[TM] = {0.0};
+    float sharedA_cache[TM] = {0.0};
+    float sharedB_cache[TN] = {0.0};
 
     const uint load_A_col = threadIdx.x % BK;
     const uint load_A_row = threadIdx.x / BK;
     const uint strideA = numThreadsBlocktile / BK;
     assert(((numThreadsBlocktile) % BK == 0)); // The total num of threads must be evenly divisible by BK
-                                   // so we can skip strideA complete rows while loading a tile.
+                                               // so we can skip strideA complete rows while loading a tile.
 
     const uint load_B_col = threadIdx.x % BN;
     const uint load_B_row = threadIdx.x / BN;
     const uint strideB = numThreadsBlocktile / BN;
     assert((numThreadsBlocktile) % BN == 0);
 
-    // thread's position within an TMxTN grid
+    // The threads position within a grid of (BM/TM) x (BN/TN)
+    // as it's divied up in this way.
     const uint thread_col = threadIdx.x % (BN / TN);
     const uint thread_row = threadIdx.x / (BN / TN);
 
@@ -52,32 +53,32 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
         __syncthreads();
         A += BK;
         B += BK * N;
-#if 0
         // This is currently not faster, investigating why.
-        for (int idx = 0; idx < BK; idx++)
+        for (int idx = 0; idx < BK; ++idx)
         {
-            for (int r = 0; r < 8; r++)
+            for (int r = 0; r < TM; ++r)
             {
                 // const uint c_row = thread_row * 8 + r;
                 // const uint shared_a_val = tmp[(thread_row * 8 + r) * BK + idx];
-                sharedA_cache[r] = sA[(thread_row * 8 + r) * BK + idx];
+                sharedA_cache[r] = sA[(thread_row * TM + r) * BK + idx];
             }
-            for (int c = 0; c < 8; c++)
+            for (int c = 0; c < TN; ++c)
             {
                 // const uint c_col = thread_col * 8 + c;
-                sharedB_cache[c] = sB[(idx * BN) + (thread_col * 8 + c)];
+                sharedB_cache[c] = sB[(idx * BN) + (thread_col * TN + c)];
                 // tmp[(r)*TM + c] += sA[shared_a_val] * sB[shared_b_val];
             }
             // do multiplication with the cached values
-            for (int r = 0; r < 8; r++)
+            for (int r = 0; r < TM; ++r)
             {
-                for (int c = 0; c < 8; c++)
+                for (int c = 0; c < TN; ++c)
                 {
-                    tmp[(r) * TM + c] += sharedA_cache[r] * sharedB_cache[c];
+                    tmp[r * TN + c] +=
+                        sharedA_cache[r] * sharedB_cache[c];
                 }
             }
         }
-#endif
+#if 0
         for (int r = 0; r < TM; r++)
         {
             const uint c_row = thread_row * TM + r;
@@ -90,6 +91,7 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
                 }
             }
         }
+#endif
         __syncthreads();
     }
     for (int r = 0; r < TM; r++)
