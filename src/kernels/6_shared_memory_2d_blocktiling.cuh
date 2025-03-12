@@ -53,22 +53,19 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
         __syncthreads();
         A += BK;
         B += BK * N;
-        // This is currently not faster, investigating why.
+
+        // Using the caches (registers) to store elements
+        // to reduce shared memory accesses. (for example sB is hit just 1x per TN, not for every TM)
         for (int idx = 0; idx < BK; ++idx)
         {
             for (int r = 0; r < TM; ++r)
             {
-                // const uint c_row = thread_row * 8 + r;
-                // const uint shared_a_val = tmp[(thread_row * 8 + r) * BK + idx];
                 sharedA_cache[r] = sA[(thread_row * TM + r) * BK + idx];
             }
             for (int c = 0; c < TN; ++c)
             {
-                // const uint c_col = thread_col * 8 + c;
                 sharedB_cache[c] = sB[(idx * BN) + (thread_col * TN + c)];
-                // tmp[(r)*TM + c] += sA[shared_a_val] * sB[shared_b_val];
             }
-            // do multiplication with the cached values
             for (int r = 0; r < TM; ++r)
             {
                 for (int c = 0; c < TN; ++c)
@@ -79,6 +76,7 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
             }
         }
 #if 0
+        // Calculations without registers and with the dot.product on the inner loop
         for (int r = 0; r < TM; r++)
         {
             const uint c_row = thread_row * TM + r;
@@ -88,6 +86,19 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
                 for (int idx = 0; idx < BK; idx++)
                 {
                     tmp[(r)*TN + c] += sA[c_row * BK + idx] * sB[idx * BN + c_col];
+                }
+            }
+        }
+        // Calculations without registers and with the dot.product on the outer loop
+        for (int idx = 0; idx < BK; idx++)
+        {
+            for (int r = 0; r < TM; r++)
+            {
+                const uint c_row = (thread_row * TM + r) * BK + idx;
+                for (int c = 0; c < TN; c++)
+                {
+                    const uint c_col = (idx * BN) + (thread_col * TN) + c;
+                    tmp[r * TN + c] += sA[c_row] * sB[c_col];
                 }
             }
         }

@@ -157,6 +157,7 @@ void run_sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float alpha,
                                             float *C)
 {
   const uint BM = 128, BN = 128, BK = 8, TM = 8, TN = 8;
+  // const uint BM = 64, BN = 64, BK = 8, TM = 8, TN = 8;
 
   dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
   dim3 blockDim((BM * BN) / (TM * TN));
