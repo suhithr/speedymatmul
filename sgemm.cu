@@ -10,7 +10,6 @@
 
 const std::string errLogFile = "matrixMultiplicationMistake.txt";
 
-
 /*
 CLI:
 ./sgemm {kernel_num} {--profile}
@@ -19,15 +18,15 @@ int main(int argc, char **argv)
 {
   if (argc < 2)
   {
-    std::cerr << "Select a kernel (range 0 - 4)" << std::endl;
+    std::cerr << "Select a kernel (range 0 - 6)" << std::endl;
     exit(EXIT_FAILURE);
   }
 
   // read kernel number
   int kernel_num = std::stoi(argv[1]);
-  if (kernel_num < 0 || kernel_num > 5)
+  if (kernel_num < 0 || kernel_num > 6)
   {
-    std::cerr << "Please enter a valid kernel number (0-4)" << std::endl;
+    std::cerr << "Please enter a valid kernel number (0-6)" << std::endl;
     exit(EXIT_FAILURE);
   }
   bool profile_mode = false;
@@ -96,7 +95,7 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-  int repeat_times = 50;
+  int repeat_times = 500;
   // Debugging kernels where we don't want to print much
   if (kernel_num == 0)
   {
@@ -105,12 +104,13 @@ int main(int argc, char **argv)
   }
   // In profile mode we want to warm up the GPU. So we run 50 times
   // pass in the --launch-skip 49 flag to NCU to skip the first 49 launches
-  if (profile_mode) {
+  if (profile_mode)
+  {
 
     SIZE = {2048};
     repeat_times = 50;
   }
-  // SIZE = {128};
+  // SIZE = {64};
   for (int size : SIZE)
   {
     m = n = k = size;
@@ -124,6 +124,7 @@ int main(int argc, char **argv)
 
     if (kernel_num > 1 && profile_mode == false)
     {
+
       run_kernel(1, m, n, k, alpha, dA, dB, beta, dC_ref, handle); // cuBLAS
       run_kernel(kernel_num, m, n, k, alpha, dA, dB, beta, dC, handle);
 

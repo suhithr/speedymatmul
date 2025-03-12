@@ -9,9 +9,6 @@ __global__ void sgemm_shared_memory_1d_blocktiling(int M, int N, int K, float al
                                                    const float *A, const float *B,
                                                    float beta, float *C)
 {
-  // const uint threadId = threadIdx.x + blockDim.x * (threadIdx.y + (blockDim.y * threadIdx.z));
-
-  //                                                64 / 2 * [0..1]
   const uint b_inner_col = threadIdx.x % BN; // 0..63
   const uint b_inner_row = threadIdx.x / BN; // 0..8
   const uint a_inner_col = threadIdx.x % BK;
