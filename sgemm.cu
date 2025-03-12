@@ -52,7 +52,9 @@ int main(int argc, char **argv)
   cudaEventCreate(&end);
 
   std::vector<int> SIZE = {128, 256,
-                           512, 1024, 2048}; // 4096}; // , 8192, 16384};
+                           512, 1024, 2048}; //4096};
+                           // at size 4096 we seem to run into floating point accuracy issues
+                           // and are not matching cublas
 
   long m, n, k, max_size;
   max_size = SIZE[SIZE.size() - 1];
