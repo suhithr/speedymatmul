@@ -156,12 +156,14 @@ void run_sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float alpha,
                                             float *A, float *B, float beta,
                                             float *C)
 {
-  const uint BLOCKSIDE = 64, BK = 8, TM = 8, TN = 8;
+  const uint BM = 128, BN = 128, BK = 8, TM = 8, TN = 8;
+  // const uint BM = 64, BN = 64, BK = 8, TM = 8, TN = 8;
 
-  dim3 gridDim(CEIL_DIV(M, BLOCKSIDE), CEIL_DIV(N, BLOCKSIDE));
-  dim3 blockDim(TM * TN);
+  dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+  dim3 blockDim((BM * BN) / (TM * TN));
 
-  sgemm_shared_memory_2d_blocktiling<BLOCKSIDE, BLOCKSIDE, BK, TM, TN><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+  sgemm_shared_memory_2d_blocktiling<BM, BN, BK, TM, TN>
+      <<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
 void run_cublas_fp32(int M, int N, int K, float alpha, float *A, float *B,
