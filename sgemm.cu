@@ -59,8 +59,6 @@ int main(int argc, char **argv)
   std::cout << "Max size: " << max_size << std::endl;
 
   float alpha = 0.6, beta = 4.0; // GEMM parameters C=alpha*AB + beta*C
-  alpha = 1.0;
-  beta = 0.0;
 
   float *A = nullptr, *B = nullptr, *C = nullptr, *C_ref = nullptr;
   float *dA = nullptr, *dB = nullptr, *dC = nullptr, *dC_ref = nullptr;
@@ -97,7 +95,7 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-  int repeat_times = 50;
+  int repeat_times = 500;
   // Debugging kernels where we don't want to print much
   if (kernel_num == 0)
   {

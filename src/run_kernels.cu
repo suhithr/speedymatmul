@@ -81,9 +81,7 @@ void randomize_matrix(float *mat, int N)
     // creating small floats from -4.04 to +4.04
     float tmp = (float)(rand() % 5) + 0.01 * (rand() % 5);
     tmp = (rand() % 2 == 0) ? tmp : tmp * (-1.0);
-    // mat[i] = i;
-    mat[i] = 1.0;
-    // mat[i] = tmp;
+    mat[i] = tmp;
   }
 }
 

@@ -10,16 +10,19 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
     __shared__ float sA[BM * BK];
     __shared__ float sB[BK * BN];
     float tmp[TM * TN] = {0.0};
+    // float sharedA_cache[TM] = {0.0};
+    // float sharedB_cache[TM] = {0.0};
 
-    const uint load_A_col = threadIdx.x % 8;
-    const uint load_A_row = threadIdx.x / 8;
-    const uint load_B_col = threadIdx.x % 64;
+    const uint load_A_col = threadIdx.x % BK;
+    const uint load_A_row = threadIdx.x / BK;
+    const uint load_B_col = threadIdx.x % BN;
+    // const uint load_B_row = threadIdx.x / BN;
     // thread's position within an 8x8 grid
     const uint thread_col = threadIdx.x % TN;
     const uint thread_row = threadIdx.x / TM;
 
     // move A, B, C by the starting block
-    A += blockIdx.y * blockDim.y * K;
+    A += blockIdx.y * blockDim.x * K;
     B += blockIdx.x * blockDim.x;
     C += (blockIdx.y * blockDim.x * N) + (blockIdx.x * blockDim.x);
     for (int offset = 0; offset < K; offset += BK)
@@ -35,6 +38,31 @@ __global__ void sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float al
         __syncthreads();
         A += BK;
         B += BK * N;
+        #if 0
+        for (int idx = 0; idx < BK; idx++)
+        {
+            for (int r = 0; r < 8; r++)
+            {
+                // const uint c_row = thread_row * 8 + r;
+                // const uint shared_a_val = tmp[(thread_row * 8 + r) * BK + idx];
+                sharedA_cache[r] = sA[(thread_row * 8 + r) * BK + idx];
+            }
+            for (int c = 0; c < 8; c++)
+            {
+                // const uint c_col = thread_col * 8 + c;
+                sharedB_cache[c] = sB[(idx * BN) + (thread_col * 8 + c)];
+                // tmp[(r)*TM + c] += sA[shared_a_val] * sB[shared_b_val];
+            }
+            // do multiplication with the cached values
+            for (int r = 0; r < 8; r++)
+            {
+                for (int c = 0; c < 8; c++)
+                {
+                    tmp[(r) * TM + c] += sharedA_cache[r] * sharedB_cache[c];
+                }
+            }
+        }
+        #endif
         for (int r = 0; r < 8; r++)
         {
             const uint c_row = thread_row * 8 + r;
