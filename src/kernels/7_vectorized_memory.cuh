@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 
 template <const uint BM, const uint BN, const uint BK, const uint TM, const uint TN>
-__global__ void sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int K, float alpha, const float *A, const float *B, float beta, float *C)
+__global__ void sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
 {
     // This is the size of the block that we are computing
     const uint resultsFromBlocktile = BM * BN;
@@ -20,16 +20,16 @@ __global__ void sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int 
     float sharedA_cache[TM] = {0.0};
     float sharedB_cache[TN] = {0.0};
 
-    const uint load_A_col = threadIdx.x % BK;
-    const uint load_A_row = threadIdx.x / BK;
-    const uint strideA = numThreadsBlocktile / BK;
+    const uint load_A_col = threadIdx.x % (BK/4); // 0..1
+    const uint load_A_row = threadIdx.x / (BK/4); // 0..31
+    const uint strideArows = (numThreadsBlocktile / BK) * 4;
     assert(((numThreadsBlocktile) % BM == 0)); // The total num of threads must be evenly divisible by BM
-                                               // so we can skip strideA complete rows while loading a tile.
+                                               // so we can skip strideArows complete rows while loading a tile.
     assert(((numThreadsBlocktile) % BK == 0)); // The total num of threads must be evenly divisible by BK as well
 
-    const uint load_B_col = threadIdx.x % BN;
-    const uint load_B_row = threadIdx.x / BN;
-    const uint strideB = numThreadsBlocktile / BN;
+    const uint load_B_col = threadIdx.x % (BN/4);
+    const uint load_B_row = threadIdx.x / (BN/4);
+    const uint strideB = (numThreadsBlocktile / BN) * 4;
     assert((numThreadsBlocktile) % BN == 0);
 
     // The threads position within a grid of (BM/TM) x (BN/TN)
@@ -43,13 +43,17 @@ __global__ void sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int 
     C += (blockIdx.y * BM * N) + (blockIdx.x * BN);
     for (int offset = 0; offset < K; offset += BK)
     {
-        for (int shiftA = 0; shiftA < BM; shiftA += strideA)
+        for (int shiftA = 0; shiftA < BM; shiftA += strideArows)
         {
-            sA[load_A_col*BM + load_A_row + shiftA ] = A[((load_A_row + shiftA) * K) + load_A_col];
+            float4 tmp = reinterpret_cast<float4*>(&A[((load_A_row + shiftA) * K) + load_A_col * 4])[0];
+            sA[(load_A_col * 4 + 0) * BM + load_A_row] = tmp.x;
+            sA[(load_A_col * 4 + 1) * BM + load_A_row] = tmp.y;
+            sA[(load_A_col * 4 + 2) * BM + load_A_row] = tmp.z;
+            sA[(load_A_col * 4 + 3) * BM + load_A_row] = tmp.w;
         }
         for (int shiftB = 0; shiftB < BK; shiftB += strideB)
         {
-            sB[(load_B_row + shiftB) * BN + load_B_col] = B[(load_B_row + shiftB) * N + load_B_col];
+            *reinterpret_cast<float4*>(&sB[(load_B_row + shiftB) * BN + load_B_col * 4]) = *reinterpret_cast<float4*>(&B[(load_B_row + shiftB) * N + load_B_col * 4]);
         }
         __syncthreads();
         A += BK;
@@ -76,34 +80,6 @@ __global__ void sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int 
                 }
             }
         }
-#if 0
-        // Calculations without registers and with the dot.product on the inner loop
-        for (int r = 0; r < TM; r++)
-        {
-            const uint c_row = thread_row * TM + r;
-            for (int c = 0; c < TN; c++)
-            {
-                const uint c_col = thread_col * TN + c;
-                for (int idx = 0; idx < BK; idx++)
-                {
-                    tmp[(r)*TN + c] += sA[c_row * BK + idx] * sB[idx * BN + c_col];
-                }
-            }
-        }
-        // Calculations without registers and with the dot.product on the outer loop
-        for (int idx = 0; idx < BK; idx++)
-        {
-            for (int r = 0; r < TM; r++)
-            {
-                const uint c_row = (thread_row * TM + r) * BK + idx;
-                for (int c = 0; c < TN; c++)
-                {
-                    const uint c_col = (idx * BN) + (thread_col * TN) + c;
-                    tmp[r * TN + c] += sA[c_row] * sB[c_col];
-                }
-            }
-        }
-#endif
         __syncthreads();
     }
     for (int r = 0; r < TM; r++)
