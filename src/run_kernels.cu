@@ -171,20 +171,6 @@ void run_sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int K, floa
                                                        float *C)
 {
   const uint BM = 128, BN = 128, BK = 8, TM = 8, TN = 8;
-  // const uint BM = 64, BN = 64, BK = 8, TM = 8, TN = 8;
-
-  // float *transposeA = nullptr;
-  // cudaMalloc((void **)&transposeA, sizeof(float) * M * K);
-  // std::cout << "M * K = " << M * K << "\n";
-  // for (int m = 0; m < M; ++m)
-  // {
-  //   for (int k = 0; k < K; ++k)
-  //   {
-  //     std::cout << k * M + m << " <- " << m * K + k << "\n";
-  //     transposeA[k * M + m] = A[m * K + k];
-  //     std::cout << "transposed A\n";
-  //   }
-  // }
 
   dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
   dim3 blockDim((BM * BN) / (TM * TN));

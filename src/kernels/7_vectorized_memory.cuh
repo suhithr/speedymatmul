@@ -25,6 +25,7 @@ __global__ void sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int 
     const uint strideA = numThreadsBlocktile / BK;
     assert(((numThreadsBlocktile) % BM == 0)); // The total num of threads must be evenly divisible by BM
                                                // so we can skip strideA complete rows while loading a tile.
+    assert(((numThreadsBlocktile) % BK == 0)); // The total num of threads must be evenly divisible by BK as well
 
     const uint load_B_col = threadIdx.x % BN;
     const uint load_B_row = threadIdx.x / BN;
