@@ -166,6 +166,33 @@ void run_sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float alpha,
       <<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
+void run_sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int K, float alpha,
+                                                       float *A, float *B, float beta,
+                                                       float *C)
+{
+  const uint BM = 128, BN = 128, BK = 8, TM = 8, TN = 8;
+  // const uint BM = 64, BN = 64, BK = 8, TM = 8, TN = 8;
+
+  // float *transposeA = nullptr;
+  // cudaMalloc((void **)&transposeA, sizeof(float) * M * K);
+  // std::cout << "M * K = " << M * K << "\n";
+  // for (int m = 0; m < M; ++m)
+  // {
+  //   for (int k = 0; k < K; ++k)
+  //   {
+  //     std::cout << k * M + m << " <- " << m * K + k << "\n";
+  //     transposeA[k * M + m] = A[m * K + k];
+  //     std::cout << "transposed A\n";
+  //   }
+  // }
+
+  dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+  dim3 blockDim((BM * BN) / (TM * TN));
+
+  sgemm_vectorized_shared_memory_2d_blocktiling<BM, BN, BK, TM, TN>
+      <<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+}
+
 void run_cublas_fp32(int M, int N, int K, float alpha, float *A, float *B,
                      float beta, float *C, cublasHandle_t handle)
 {
@@ -203,6 +230,9 @@ void run_kernel(int selected_kernel, int M, int N, int K, float alpha, float *A,
     break;
   case 6:
     run_sgemm_shared_memory_2d_blocktiling(M, N, K, alpha, A, B, beta, C);
+    break;
+  case 7:
+    run_sgemm_vectorized_shared_memory_2d_blocktiling(M, N, K, alpha, A, B, beta, C);
     break;
   default:
     throw std::invalid_argument("Unknown kernel number");
