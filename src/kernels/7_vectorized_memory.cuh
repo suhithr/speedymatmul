@@ -20,8 +20,6 @@ __global__ void sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int 
     float sharedA_cache[TM] = {0.0};
     float sharedB_cache[TN] = {0.0};
 
-    const uint vector_size = 4;
-
     const uint load_A_col = threadIdx.x % (BK/4); // 0..1
     const uint load_A_row = threadIdx.x / (BK/4); // 0..31
     const uint strideArows = (numThreadsBlocktile / BK) * 4;
