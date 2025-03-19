@@ -1,3 +1,4 @@
+// #include "kernels.cuh"
 #include "run_kernels.cuh"
 #include <cstdlib>
 #include <cublas_v2.h>
@@ -18,15 +19,15 @@ int main(int argc, char **argv)
 {
   if (argc < 2)
   {
-    std::cerr << "Select a kernel (range 0 - 7)" << std::endl;
+    std::cerr << "Select a kernel (range 0 - 8)" << std::endl;
     exit(EXIT_FAILURE);
   }
 
   // read kernel number
   int kernel_num = std::stoi(argv[1]);
-  if (kernel_num < 0 || kernel_num > 7)
+  if (kernel_num < 0 || kernel_num > 8)
   {
-    std::cerr << "Please enter a valid kernel number (0-7)" << std::endl;
+    std::cerr << "Please enter a valid kernel number (0-8)" << std::endl;
     exit(EXIT_FAILURE);
   }
   bool profile_mode = false;

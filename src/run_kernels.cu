@@ -167,15 +167,30 @@ void run_sgemm_shared_memory_2d_blocktiling(int M, int N, int K, float alpha,
 }
 
 void run_sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int K, float alpha,
+  float *A, float *B, float beta,
+  float *C)
+{
+const uint BM = 128, BN = 128, BK = 8, TM = 8, TN = 8;
+
+dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+dim3 blockDim((BM * BN) / (TM * TN));
+
+sgemm_vectorized_shared_memory_2d_blocktiling<BM, BN, BK, TM, TN>
+<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+}
+
+void run_sgemm_warptiling(int M, int N, int K, float alpha,
                                                        float *A, float *B, float beta,
                                                        float *C)
 {
-  const uint BM = 128, BN = 128, BK = 8, TM = 8, TN = 8;
+  const uint BM = 128, BN = 128, BK = 8, TM = 8, TN = 8, thread_tile_rows = 8, thread_tile_cols = 4;
 
   dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
   dim3 blockDim((BM * BN) / (TM * TN));
 
-  sgemm_vectorized_shared_memory_2d_blocktiling<BM, BN, BK, TM, TN>
+
+  assert(thread_tile_cols * thread_tile_rows == 32); // warp size
+  sgemm_warptiling<BM, BN, BK, TM, TN, thread_tile_rows, thread_tile_cols>
       <<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
@@ -219,6 +234,9 @@ void run_kernel(int selected_kernel, int M, int N, int K, float alpha, float *A,
     break;
   case 7:
     run_sgemm_vectorized_shared_memory_2d_blocktiling(M, N, K, alpha, A, B, beta, C);
+    break;
+  case 8:
+    run_sgemm_warptiling(M, N, K, alpha, A, B, beta, C);
     break;
   default:
     throw std::invalid_argument("Unknown kernel number");
