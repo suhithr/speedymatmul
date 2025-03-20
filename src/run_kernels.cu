@@ -184,6 +184,7 @@ void run_sgemm_warptiling(int M, int N, int K, float alpha,
                                                        float *C)
 {
   const uint BM = 128, BN = 128, BK = 8, TM = 8, TN = 8, thread_tile_rows = 8, thread_tile_cols = 4;
+  // const uint BM = 64, BN = 64, BK = 8, TM = 8, TN = 4, thread_tile_rows = 8, thread_tile_cols = 4;
 
   dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
   dim3 blockDim((BM * BN) / (TM * TN));

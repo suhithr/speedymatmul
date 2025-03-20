@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 
 template <const uint BM, const uint BN, const uint BK, const uint TM, const uint TN, const uint thread_tile_rows, const uint thread_tile_cols>
-__global__ void sgemm_warptiling(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)//  float* sA, float* sB)
+__global__ void sgemm_warptiling(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C) //  float* sA, float* sB)
 {
     const uint tid = threadIdx.x + (blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z));
     const uint warp_id = tid / warpSize;
@@ -29,8 +29,8 @@ __global__ void sgemm_warptiling(int M, int N, int K, float alpha, float *A, flo
     assert(numThreadsBlocktile == blockDim.x); // blockDim.x must be set up to be the right number of threads
     assert(numThreadsBlocktile % warpSize == 0);
 
-    const uint load_A_col = threadIdx.x % (BK/4); // 0..1
-    const uint load_A_row = threadIdx.x / (BK/4); // 0..31
+    const uint load_A_col = threadIdx.x % (BK / 4); // 0..1
+    const uint load_A_row = threadIdx.x / (BK / 4); // 0..31
     const uint strideArows = (numThreadsBlocktile / BK) * 4;
     assert(((numThreadsBlocktile) % BM == 0)); // The total num of threads must be evenly divisible by BM
     assert(((numThreadsBlocktile) % BK == 0)); // The total num of threads must be evenly divisible by BK
@@ -43,9 +43,11 @@ __global__ void sgemm_warptiling(int M, int N, int K, float alpha, float *A, flo
     // The threads position within a grid of (BM/TM) x (BN/TN)
     // as it's divied up in this way.
 
+    const uint wpFragWidth = 2;
+
     __shared__ float sA[BK * BM];
     __shared__ float sB[BK * BN];
-    float registerA[TM] = {0.0}, registerB[TN] = {0.0}, acc_cache[TM * TN] = {0.0}; // register caches
+    float registerA[TM * wpFragWidth] = {0.0}, registerB[TN * wpFragWidth] = {0.0}, acc_cache[TM * TN] = {0.0}; // register caches
 
     // move A, B, C by the starting block
     A += blockIdx.y * BM * K;
@@ -60,7 +62,7 @@ __global__ void sgemm_warptiling(int M, int N, int K, float alpha, float *A, flo
         // these loops are for the thread-level shifting to encourage coalescing of GMEM loads
         for (int shiftA = 0; shiftA < BM; shiftA += strideArows)
         {
-            float4 tmp = reinterpret_cast<float4*>(&A[((load_A_row + shiftA) * K) + load_A_col * 4])[0];
+            float4 tmp = reinterpret_cast<float4 *>(&A[((load_A_row + shiftA) * K) + load_A_col * 4])[0];
             sA[(load_A_col * 4 + 0) * BM + load_A_row] = tmp.x;
             sA[(load_A_col * 4 + 1) * BM + load_A_row] = tmp.y;
             sA[(load_A_col * 4 + 2) * BM + load_A_row] = tmp.z;
@@ -78,23 +80,28 @@ __global__ void sgemm_warptiling(int M, int N, int K, float alpha, float *A, flo
 
         // // Using the caches (registers) to store elements
         // // to reduce shared memory accesses. (for example sB is hit just 1x per TN, not for every TM)
-        for (int frgmtOffset = 0; frgmtOffset < BK; ++frgmtOffset)
+        for (int frgmtOffset = 0; frgmtOffset < BK; frgmtOffset += wpFragWidth)
         {
             // load to registers
-            for (int i = 0; i < TM; i++)
+            for (int rg = 0; rg < wpFragWidth; ++rg)
             {
-                registerA[i] = sA[frgmtOffset * BM + thread_row_in_block + i];
-            }
-            for (int i = 0; i < TN; i++)
-            {
-                registerB[i] = sB[frgmtOffset * BN + thread_col_in_block + i];
-            }
-
-            for (int rid = 0; rid < TM; ++rid)
-            {
-                for (int cid = 0; cid < TN; ++cid)
+                for (int i = 0; i < TM; i++)
                 {
-                    acc_cache[rid * TN + cid] += registerA[rid] * registerB[cid];
+                    registerA[rg * TM + i] = sA[(frgmtOffset + rg) * BM + thread_row_in_block + i];
+                }
+                for (int i = 0; i < TN; i++)
+                {
+                    registerB[rg * TM + i] = sB[(frgmtOffset + rg) * BN + thread_col_in_block + i];
+                }
+            }
+            for (int rg = 0; rg < wpFragWidth; ++rg)
+            {
+                for (int rid = 0; rid < TM; ++rid)
+                {
+                    for (int cid = 0; cid < TN; ++cid)
+                    {
+                        acc_cache[rid * TN + cid] += registerA[rg * TM + rid] * registerB[rg * TN + cid];
+                    }
                 }
             }
         }
