@@ -110,10 +110,17 @@ __global__ void sgemm_warptiling(int M, int N, int K, float alpha, float *A, flo
     for (int rinc = 0; rinc < TM; ++rinc)
     {
         const uint crow = (thread_row_in_block + rinc) * N;
-        for (int cinc = 0; cinc < TN; ++cinc)
+        for (int cinc = 0; cinc < TN; cinc += 4)
         {
             const uint ccol = thread_col_in_block + cinc;
-            C[crow + ccol] = alpha * acc_cache[rinc * TN + cinc] + beta * C[crow + ccol];
+            float4 tmp = reinterpret_cast<float4*>(&C[crow + ccol])[0];
+            const uint i = rinc * TN + cinc;
+            tmp.x = alpha * acc_cache[i + 0] + beta * tmp.x;
+            tmp.y = alpha * acc_cache[i + 1] + beta * tmp.y;
+            tmp.z = alpha * acc_cache[i + 2] + beta * tmp.z;
+            tmp.w = alpha * acc_cache[i + 3] + beta * tmp.w;
+
+            *reinterpret_cast<float4 *>(&C[crow + ccol]) = tmp;
         }
     }
 }
