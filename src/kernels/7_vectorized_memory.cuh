@@ -84,11 +84,19 @@ __global__ void sgemm_vectorized_shared_memory_2d_blocktiling(int M, int N, int 
     }
     for (int r = 0; r < TM; r++)
     {
-        const uint c_row = thread_row * TM + r;
-        for (int c = 0; c < TN; c++)
+        const uint c_row = (thread_row * TM + r) * N;
+        for (int c = 0; c < TN; c+=4)
         {
             const uint c_col = thread_col * TN + c;
-            C[c_row * N + c_col] = alpha * tmp[r * TN + c] + beta * C[c_row * N + c_col];
+            // C[c_row * N + c_col] = alpha * tmp[r * TN + c] + beta * C[c_row * N + c_col];
+            float4 tmpC = reinterpret_cast<float4*>(&C[c_row + c_col])[0];
+            const uint i = r * TN + c;
+            tmpC.x = alpha * tmp[i + 0] + beta * tmpC.x;
+            tmpC.y = alpha * tmp[i + 1] + beta * tmpC.y;
+            tmpC.z = alpha * tmp[i + 2] + beta * tmpC.z;
+            tmpC.w = alpha * tmp[i + 3] + beta * tmpC.w;
+
+            *reinterpret_cast<float4 *>(&C[c_row + c_col]) = tmpC;
         }
     }
 }
