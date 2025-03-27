@@ -1,5 +1,6 @@
 #include "kernels.cuh"
 #include "run_kernels.cuh"
+#include "instrumentation.cuh"
 #include <cmath>
 #include <cstdio>
 #include <iomanip>
@@ -100,6 +101,17 @@ bool verify_matrix(float *D_ref, float *D, int SIZE)
     }
   }
   return true;
+}
+
+void run_sgemm_naive_with_intrumentation(int M, int N, int K, float alpha, float *A, float *B,
+                     float beta, float *C)
+{
+  dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
+  dim3 blockDim(32, 32);
+  
+  MemoryInstrument<float*>
+
+  sgemm_naive<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
 void run_sgemm_naive(int M, int N, int K, float alpha, float *A, float *B,
